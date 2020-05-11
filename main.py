@@ -1,31 +1,23 @@
-import pygame
 import os
+import pygame
 
 SCREENWIDTH = 850
 SCREENHEIGHT = 480
 
-# initializing pygame
 os.environ['SDL_VIDEO_WINDOW_POS'] = str(SCREENWIDTH // 2) + "," + str(SCREENHEIGHT // 2)
-pygame.init()
 
 walk_right_pics = [pygame.image.load('./assets/R1.png'), pygame.image.load('./assets/R2.png'),
                    pygame.image.load('./assets/R3.png'), pygame.image.load('./assets/R4.png'),
                    pygame.image.load('./assets/R5.png'), pygame.image.load('./assets/R6.png'),
                    pygame.image.load('./assets/R7.png'), pygame.image.load('./assets/R8.png'),
                    pygame.image.load('./assets/R9.png')]
-
 walk_left_pics = [pygame.image.load('./assets/L1.png'), pygame.image.load('./assets/L2.png'),
                   pygame.image.load('./assets/L3.png'), pygame.image.load('./assets/L4.png'),
                   pygame.image.load('./assets/L5.png'), pygame.image.load('./assets/L6.png'),
                   pygame.image.load('./assets/L7.png'), pygame.image.load('./assets/L8.png'),
                   pygame.image.load('./assets/L9.png')]
-
 standing = pygame.image.load('./assets/standing.png')
-
 bg = pygame.image.load('./assets/bg.jpg')
-
-win = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
-pygame.display.set_caption("Testing")
 
 
 class Player:
@@ -40,32 +32,62 @@ class Player:
         self.walk_count = 0
         self.is_jumping = False
         self.jump_count = 10
+        self.is_standing = True
 
     def draw(self, win):
+
         if self.walk_count + 1 > 27:
             self.walk_count = 0
-        if self.left:
-            win.blit(walk_left_pics[self.walk_count // 3], (self.x, self.y))
+
+        if not self.is_standing:
+            if self.left:
+                win.blit(walk_left_pics[self.walk_count // 3], (self.x, self.y))
+
+            elif self.right:
+                win.blit(walk_right_pics[self.walk_count // 3], (self.x, self.y))
+
             self.walk_count += 1
-        elif self.right:
-            win.blit(walk_right_pics[self.walk_count // 3], (self.x, self.y))
-            self.walk_count += 1
+
         else:
-            win.blit(standing, (self.x, self.y))
+            if self.left:
+                win.blit(walk_left_pics[0], (self.x, self.y))
+            else:
+                win.blit(walk_right_pics[0], (self.x, self.y))
 
 
+class Projectile:
+    def __init__(self, x, y, facing):
+        # facing 1 --> right
+        # facing -1 --> left
+        self.x = x
+        self.y = y
+        self.radius = 6
+        self.color = (0, 0, 0)
+        self.facing = facing
+        self.velocity = 8 * facing
+
+    def draw(self, win):
+        pygame.draw.circle(win, self.color, (self.x, self.y), self.radius)
+
+
+pygame.init()
+win = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
+pygame.display.set_caption("sShooter")
 clock = pygame.time.Clock()
 
 player = Player(50, 400, 64, 64)
-run = True
+bullets = []
 
 
 def redraw_game_window():
     win.blit(bg, (0, 0))
     player.draw(win)
+    for bullet in bullets:
+        bullet.draw(win)
     pygame.display.update()
 
 
+run = True
 while run:
     clock.tick(27)
     for event in pygame.event.get():
@@ -75,25 +97,39 @@ while run:
             if event.key == ord('q'):
                 run = False
 
+    for bullet in bullets:
+        if SCREENWIDTH > bullet.x > 0:
+            bullet.x += bullet.velocity
+        else:
+            bullets.pop(bullets.index(bullet))
+
     keys = pygame.key.get_pressed()
+    if keys[pygame.K_SPACE]:
+        if len(bullets) < 10:
+            direction = 1
+            if player.left:
+                direction = -1
+            bullets.append(
+                Projectile(round(player.x + player.width // 2), round(player.y + player.height // 2), direction))
 
     if keys[pygame.K_LEFT] and player.x >= player.velocity:
         player.x -= player.velocity
         player.left = True
         player.right = False
+        player.is_standing = False
 
     elif keys[pygame.K_RIGHT] and player.x <= SCREENWIDTH - player.width - player.velocity:
         player.x += player.velocity
         player.left = False
         player.right = True
+        player.is_standing = False
 
     else:
-        player.left = False
-        player.right = False
+        player.is_standing = True
         walk_count = 0
 
     if not player.is_jumping:
-        if keys[pygame.K_SPACE]:
+        if keys[pygame.K_UP]:
             player.is_jumping = True
             player.left = False
             player.right = False
